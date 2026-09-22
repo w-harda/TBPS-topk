@@ -274,7 +274,9 @@ subset:
 
 默认直接把 APTM 官方处理后的同一个 `cuhk_test.json` 同时作为 gallery manifest 和
 query annotations。每项的 `image` 路径相对 `dataset.root`，`caption` 列表作为 text
-queries；重复图片会按 `image_id`/路径去重：
+queries。CUHK-PEDES 标注中的 `image_id`/`id` 是 Person ID；gallery 会使用
+`<person_id>:<relative_image_path>` 作为稳定的图片实例 ID，同一 Person ID 的不同图片全部
+保留，同一路径的重复记录仍按路径去重：
 
 ```json
 [

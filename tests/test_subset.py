@@ -41,9 +41,53 @@ def test_gallery_manifest_limit_and_relative_paths(tmp_path: Path) -> None:
     )
     images = load_gallery_manifest(manifest, dataset_root, limit=2, split_name="test")
     assert images == [
-        ("g1", (dataset_root / "one.jpg").resolve()),
-        ("g2", (dataset_root / "two.jpg").resolve()),
+        ("g1:one.jpg", (dataset_root / "one.jpg").resolve()),
+        ("g2:two.jpg", (dataset_root / "two.jpg").resolve()),
     ]
+
+
+def test_gallery_manifest_keeps_different_images_for_the_same_person(tmp_path: Path) -> None:
+    dataset_root = tmp_path / "dataset"
+    dataset_root.mkdir()
+    for name in ("one.jpg", "two.jpg"):
+        (dataset_root / name).write_bytes(b"image")
+    manifest = tmp_path / "gallery.json"
+    manifest.write_text(
+        json.dumps(
+            [
+                {"image_id": 12004, "image": "one.jpg"},
+                {"image_id": 12004, "image": "two.jpg"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    images = load_gallery_manifest(manifest, dataset_root)
+
+    assert images == [
+        ("12004:one.jpg", (dataset_root / "one.jpg").resolve()),
+        ("12004:two.jpg", (dataset_root / "two.jpg").resolve()),
+    ]
+
+
+def test_gallery_manifest_deduplicates_repeated_paths(tmp_path: Path) -> None:
+    dataset_root = tmp_path / "dataset"
+    dataset_root.mkdir()
+    (dataset_root / "one.jpg").write_bytes(b"image")
+    manifest = tmp_path / "gallery.json"
+    manifest.write_text(
+        json.dumps(
+            [
+                {"image_id": 12004, "image": "one.jpg"},
+                {"image_id": 99999, "image": "one.jpg"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    images = load_gallery_manifest(manifest, dataset_root)
+
+    assert images == [("12004:one.jpg", (dataset_root / "one.jpg").resolve())]
 
 
 def test_query_loader_supports_cuhk_caption_lists_and_processed_records(tmp_path: Path) -> None:

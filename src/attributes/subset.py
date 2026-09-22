@@ -33,7 +33,6 @@ def load_gallery_manifest(
     if not isinstance(records, list):
         raise ValueError("gallery manifest 必须是记录列表")
     images: list[tuple[str, Path]] = []
-    seen_ids: dict[str, Path] = {}
     seen_paths: set[Path] = set()
     for index, record in enumerate(records):
         if limit is not None and len(images) >= limit:
@@ -48,16 +47,13 @@ def load_gallery_manifest(
             raise ValueError(f"gallery manifest 第 {index} 项缺少 path/image/file_path")
         relative = Path(value).expanduser()
         image_path = relative if relative.is_absolute() else root / relative
-        image_id = str(record.get("image_id", record.get("id", index)))
         if not image_path.is_file():
             raise FileNotFoundError(f"gallery image 不存在: {image_path}")
         resolved_path = image_path.resolve()
-        previous_path = seen_ids.get(image_id)
-        if previous_path is not None and previous_path != resolved_path:
-            raise ValueError(f"gallery image_id {image_id!r} 对应多个不同路径")
-        if previous_path is not None or resolved_path in seen_paths:
+        if resolved_path in seen_paths:
             continue
-        seen_ids[image_id] = resolved_path
+        person_id = str(record.get("image_id", record.get("id", index)))
+        image_id = f"{person_id}:{relative.as_posix()}"
         seen_paths.add(resolved_path)
         images.append((image_id, resolved_path))
     if not images:
