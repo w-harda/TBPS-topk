@@ -113,9 +113,9 @@ python scripts/smoke_test_aptm_gpu.py `
 
 ```yaml
 dataset:
-  root: ./datasets/CUHK-PEDES
+  root: ./datasets/CUHK-PEDES/imgs
   train_annotations: ./datasets/CUHK-PEDES/cuhk_train.json
-  gallery_manifest: ./datasets/CUHK-PEDES/gallery.json
+  gallery_manifest: ./datasets/CUHK-PEDES/cuhk_test.json
 
 aptm:
   root: ./third_party/APTM
@@ -129,16 +129,9 @@ cache:
   gallery_attributes: ./cache/gallery_attributes.json
 ```
 
-`gallery.json` 是小型 manifest，可按以下格式准备；图片路径相对 `dataset.root`：
-
-```json
-[
-  {"image_id": "cam_a_0001", "path": "imgs/cam_a/0001.jpg"},
-  {"image_id": "cam_b_0002", "path": "imgs/cam_b/0002.jpg"}
-]
-```
-
-如果 manifest 包含整个 gallery、因而体积较大，请将其与数据集一起留在 `datasets/`，不要提交。
+这里直接使用 APTM 官方处理后的 `cuhk_test.json`。其中的 `image` 相对于
+`datasets/CUHK-PEDES/imgs/`，同一文件还包含 `image_id` 和 caption 列表，因此无需额外
+生成 gallery manifest。数据和标注仍留在 `datasets/`，不要提交 GitHub。
 
 ## 1. 构建 Raw Attribute Vocabulary
 
@@ -197,7 +190,8 @@ clone 固定 commit 后复制，或在 Windows 准备后通过 XFTP 上传。
   checkpoints/swin_base_patch4_window7_224_22k.pth
 
 全量 gallery 才需要：
-  datasets/CUHK-PEDES/                    图片与 gallery.json
+  datasets/CUHK-PEDES/imgs/               CUHK-PEDES 图片
+  datasets/CUHK-PEDES/cuhk_test.json       APTM 官方处理后的 test 标注
 ```
 
 原因是官方 `APTM_Retrieval` 构造期间始终通过
@@ -261,16 +255,15 @@ gallery cache、`C(A)`、`S(a_i)` 和 Dynamic Top-K：
 python scripts/run_subset_topk.py \
   --config configs/attributes.yaml \
   --num-gallery 20 \
-  --num-queries 10 \
-  --output-dir outputs/subset
+  --num-queries 10
 ```
 
 输入路径由 `configs/attributes.yaml` 管理：
 
 ```yaml
 dataset:
-  root: ./datasets/CUHK-PEDES
-  gallery_manifest: ./datasets/CUHK-PEDES/gallery.json
+  root: ./datasets/CUHK-PEDES/imgs
+  gallery_manifest: ./datasets/CUHK-PEDES/cuhk_test.json
   gallery_split: test
 
 subset:
@@ -279,15 +272,25 @@ subset:
   output_dir: ./outputs/subset
 ```
 
-gallery manifest 是对象列表，每项使用 `path`、`image` 或 `file_path`，路径相对
-`dataset.root`。若记录包含 `split`，只读取配置的 `gallery_split`；重复图片会按
-`image_id`/路径去重：
+默认直接把 APTM 官方处理后的同一个 `cuhk_test.json` 同时作为 gallery manifest 和
+query annotations。每项的 `image` 路径相对 `dataset.root`，`caption` 列表作为 text
+queries；重复图片会按 `image_id`/路径去重：
 
 ```json
 [
-  {"image_id": "g1", "path": "imgs/cam_a/001.jpg"},
-  {"image_id": "g2", "image": "imgs/cam_b/002.jpg"}
+  {
+    "image": "cam_a/001.jpg",
+    "image_id": "g1",
+    "caption": ["First description.", "Second description."]
+  }
 ]
+```
+
+服务器只需准备：
+
+```text
+datasets/CUHK-PEDES/imgs/
+datasets/CUHK-PEDES/cuhk_test.json
 ```
 
 query annotations 支持两类常见格式：

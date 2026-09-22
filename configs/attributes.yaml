@@ -1,9 +1,9 @@
 seed: 42
 
 dataset:
-  root: ./datasets/CUHK-PEDES
+  root: ./datasets/CUHK-PEDES/imgs
   train_annotations: ./datasets/CUHK-PEDES/cuhk_train.json
-  gallery_manifest: ./datasets/CUHK-PEDES/gallery.json
+  gallery_manifest: ./datasets/CUHK-PEDES/cuhk_test.json
   gallery_split: test
   train_split_name: train
   # 独立的 cuhk_train.json 通常不含 split 字段；若使用总标注文件请改为 true。
