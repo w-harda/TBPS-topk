@@ -57,3 +57,81 @@ def test_one_phrase_can_map_to_multiple_attribute_dimensions() -> None:
         "lower_length:short",
         "lower_type:pants_or_shorts",
     } <= canonical
+
+
+def test_controlled_composition_rules_cover_real_cuhk_phrases() -> None:
+    canonicalizer = make_canonicalizer()
+    cases = {
+        "short black hair": {"hair_length:short"},
+        "long dark hair": {"hair_length:long"},
+        "white t-shirt": {"upper_white:positive"},
+        "black leather jacket": {"upper_black:positive"},
+        "black and grey striped tank": {
+            "upper_black:positive",
+            "upper_gray:positive",
+        },
+        "green leggings": {
+            "lower_green:positive",
+            "lower_type:pants_or_shorts",
+        },
+        "gray slacks": {
+            "lower_gray:positive",
+            "lower_type:pants_or_shorts",
+        },
+    }
+
+    for text, expected in cases.items():
+        attributes = canonicalizer.extract(text)
+        assert expected <= {attribute.canonical for attribute in attributes}
+        assert all(text[slice(*attribute.span)] == attribute.raw for attribute in attributes)
+
+
+def test_upper_color_rule_does_not_cross_lower_garment() -> None:
+    attributes = make_canonicalizer().extract("black pants and white shirt")
+    canonical = {attribute.canonical for attribute in attributes}
+    assert "upper_white:positive" in canonical
+    assert "upper_black:positive" not in canonical
+    assert "lower_black:positive" in canonical
+
+
+def test_lower_color_rule_does_not_cross_upper_garment() -> None:
+    attributes = make_canonicalizer().extract("white shirt and black pants")
+    canonical = {attribute.canonical for attribute in attributes}
+    assert "lower_black:positive" in canonical
+    assert "lower_white:positive" not in canonical
+    assert "upper_white:positive" in canonical
+
+
+def test_literal_negative_alias_still_wins_over_composed_positive() -> None:
+    attributes = make_canonicalizer().extract("not wearing a black shirt")
+    canonical = {attribute.canonical for attribute in attributes}
+    assert "upper_black:negative" in canonical
+    assert "upper_black:positive" not in canonical
+
+
+def test_phrase_candidate_generation_uses_composition_rules() -> None:
+    mapped, unmapped = make_canonicalizer().generate_candidates(
+        {
+            "short black hair": 8,
+            "black leather jacket": 7,
+            "gray slacks": 5,
+        }
+    )
+    by_raw = {candidate.raw: set(candidate.candidates) for candidate in mapped}
+    assert by_raw["short black hair"] == {"hair_length:short"}
+    assert by_raw["black leather jacket"] == {"upper_black:positive"}
+    assert by_raw["gray slacks"] == {
+        "lower_gray:positive",
+        "lower_type:pants_or_shorts",
+    }
+    assert unmapped == []
+
+
+def test_conservative_lower_types_do_not_infer_length() -> None:
+    canonicalizer = make_canonicalizer()
+    for garment in ("leggings", "slacks", "tights"):
+        canonical = {
+            attribute.canonical for attribute in canonicalizer.extract(f"black {garment}")
+        }
+        assert "lower_type:pants_or_shorts" in canonical
+        assert not any(value.startswith("lower_length:") for value in canonical)

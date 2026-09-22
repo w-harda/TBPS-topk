@@ -38,8 +38,89 @@ def _alias_pattern(alias: str) -> re.Pattern[str]:
     return re.compile(rf"(?<!\w){body}(?!\w)", re.IGNORECASE)
 
 
+def _lexicon_pattern(phrases: Sequence[str]) -> re.Pattern[str]:
+    alternatives = []
+    for phrase in sorted(phrases, key=lambda item: (-len(item), item)):
+        pieces = [re.escape(piece) for piece in phrase.split()]
+        alternatives.append(r"[\s-]+".join(pieces))
+    return re.compile(rf"(?<!\w)(?:{'|'.join(alternatives)})(?!\w)", re.IGNORECASE)
+
+
+_WORD_PATTERN = re.compile(r"(?<!\w)[A-Za-z]+(?:-[A-Za-z]+)*(?!\w)")
+_CLAUSE_BOUNDARY_PATTERN = re.compile(r"[.!?;:,]")
+_HAIR_LENGTH_PATTERN = re.compile(
+    r"(?<!\w)(?P<length>short|long)"
+    r"(?:[\s-]+(?:black|dark|brown|blond|blonde|gray|grey|white|red|light|straight|curly|wavy)){0,2}"
+    r"[\s-]+hair(?!\w)",
+    re.IGNORECASE,
+)
+_UPPER_GARMENT_PATTERN = _lexicon_pattern(
+    (
+        "tee shirt",
+        "t shirt",
+        "tank top",
+        "shirt",
+        "tank",
+        "top",
+        "blouse",
+        "jacket",
+        "coat",
+        "hoodie",
+        "sweater",
+        "vest",
+        "sweatshirt",
+    )
+)
+_LOWER_GARMENT_PATTERN = _lexicon_pattern(
+    ("pants", "trousers", "jeans", "shorts", "skirt", "dress", "leggings", "slacks", "tights")
+)
+_CONSERVATIVE_PANTS_TYPE_PATTERN = _lexicon_pattern(("leggings", "slacks", "tights"))
+_UPPER_COLORS = {
+    "black": "upper_black:positive",
+    "white": "upper_white:positive",
+    "red": "upper_red:positive",
+    "purple": "upper_purple:positive",
+    "yellow": "upper_yellow:positive",
+    "blue": "upper_blue:positive",
+    "green": "upper_green:positive",
+    "gray": "upper_gray:positive",
+    "grey": "upper_gray:positive",
+}
+_LOWER_COLORS = {
+    "black": "lower_black:positive",
+    "white": "lower_white:positive",
+    "purple": "lower_purple:positive",
+    "yellow": "lower_yellow:positive",
+    "blue": "lower_blue:positive",
+    "green": "lower_green:positive",
+    "pink": "lower_pink:positive",
+    "gray": "lower_gray:positive",
+    "grey": "lower_gray:positive",
+    "brown": "lower_brown:positive",
+}
+_COLOR_MODIFIERS = {
+    "and",
+    "or",
+    "striped",
+    "stripe",
+    "leather",
+    "denim",
+    "plain",
+    "patterned",
+    "printed",
+    "light",
+    "dark",
+    "long",
+    "short",
+    "sleeve",
+    "sleeved",
+    "sleeveless",
+}
+_COLOR_WINDOW_TOKENS = 4
+
+
 class Canonicalizer:
-    """使用冻结 alias map 完成 Raw phrase → Canonical 映射。"""
+    """使用冻结 alias map 和受控组合规则完成 Raw phrase → Canonical 映射。"""
 
     def __init__(
         self,
@@ -74,6 +155,16 @@ class Canonicalizer:
             )
             for canonical in canonicals
         ]
+        composition_canonicals = {
+            "hair_length:short",
+            "hair_length:long",
+            "lower_type:pants_or_shorts",
+            *_UPPER_COLORS.values(),
+            *_LOWER_COLORS.values(),
+        }
+        missing = composition_canonicals - ontology.canonical_values
+        if missing:
+            raise ValueError(f"组合规则指向 ontology 中不存在的 canonical: {sorted(missing)}")
 
     @classmethod
     def load(
@@ -100,6 +191,7 @@ class Canonicalizer:
                         span=(match.start(), match.end()),
                     )
                 )
+        candidates.extend(self._composition_candidates(caption))
 
         # 先保留长匹配；避免 "without a hat" 同时产出 hat:negative 与 hat:positive。
         candidates.sort(
@@ -122,6 +214,68 @@ class Canonicalizer:
         accepted.sort(key=lambda item: (item.span[0], item.span[1], item.canonical))
         return accepted
 
+    def _composition_candidates(self, caption: str) -> list[CanonicalAttribute]:
+        candidates: list[CanonicalAttribute] = []
+        for match in _HAIR_LENGTH_PATTERN.finditer(caption):
+            canonical = f"hair_length:{match.group('length').lower()}"
+            candidates.append(
+                CanonicalAttribute(
+                    raw=caption[match.start() : match.end()],
+                    canonical=canonical,
+                    span=(match.start(), match.end()),
+                )
+            )
+
+        candidates.extend(
+            self._color_candidates(caption, _UPPER_GARMENT_PATTERN, _UPPER_COLORS)
+        )
+        candidates.extend(
+            self._color_candidates(caption, _LOWER_GARMENT_PATTERN, _LOWER_COLORS)
+        )
+        for match in _CONSERVATIVE_PANTS_TYPE_PATTERN.finditer(caption):
+            candidates.append(
+                CanonicalAttribute(
+                    raw=caption[match.start() : match.end()],
+                    canonical="lower_type:pants_or_shorts",
+                    span=(match.start(), match.end()),
+                )
+            )
+        return candidates
+
+    @staticmethod
+    def _color_candidates(
+        caption: str,
+        garment_pattern: re.Pattern[str],
+        color_to_canonical: Mapping[str, str],
+    ) -> list[CanonicalAttribute]:
+        candidates: list[CanonicalAttribute] = []
+        tokens = list(_WORD_PATTERN.finditer(caption))
+        for garment in garment_pattern.finditer(caption):
+            previous_tokens = [token for token in tokens if token.end() <= garment.start()][
+                -_COLOR_WINDOW_TOKENS:
+            ]
+            next_start = garment.start()
+            color_tokens: list[tuple[re.Match[str], str]] = []
+            for token in reversed(previous_tokens):
+                if _CLAUSE_BOUNDARY_PATTERN.search(caption[token.end() : next_start]):
+                    break
+                normalized = token.group(0).lower()
+                canonical = color_to_canonical.get(normalized)
+                if canonical is not None:
+                    color_tokens.append((token, canonical))
+                elif normalized not in _COLOR_MODIFIERS:
+                    break
+                next_start = token.start()
+            for color_token, canonical in color_tokens:
+                candidates.append(
+                    CanonicalAttribute(
+                        raw=caption[color_token.start() : garment.end()],
+                        canonical=canonical,
+                        span=(color_token.start(), garment.end()),
+                    )
+                )
+        return candidates
+
     def map_phrase(self, phrase: str) -> tuple[str, ...]:
         normalized = " ".join(phrase.lower().split())
         exact = self.alias_to_canonical.get(normalized)
@@ -132,6 +286,9 @@ class Canonicalizer:
             for _alias, canonical, pattern in self._patterns
             if pattern.search(normalized)
         }
+        matches.update(
+            candidate.canonical for candidate in self._composition_candidates(normalized)
+        )
         return tuple(sorted(matches))
 
     def generate_candidates(
