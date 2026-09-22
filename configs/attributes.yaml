@@ -4,6 +4,7 @@ dataset:
   root: ./datasets/CUHK-PEDES
   train_annotations: ./datasets/CUHK-PEDES/cuhk_train.json
   gallery_manifest: ./datasets/CUHK-PEDES/gallery.json
+  gallery_split: test
   train_split_name: train
   # 独立的 cuhk_train.json 通常不含 split 字段；若使用总标注文件请改为 true。
   require_split_field: false
@@ -60,3 +61,10 @@ smoke_test:
   # 可填相对项目根目录或绝对路径；也可由脚本的 --image 参数提供。
   images: []
   max_images: 2
+
+subset:
+  query_annotations: ./datasets/CUHK-PEDES/cuhk_test.json
+  query_split: test
+  output_dir: ./outputs/subset
+  # 1 个或更少 canonical 属性记为低覆盖，供人工检查 alias_map，不自动扩展 alias。
+  low_coverage_max_attributes: 1

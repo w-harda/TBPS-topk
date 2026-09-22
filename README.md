@@ -46,6 +46,7 @@ idea-TBPS/
 │   ├── build_raw_attribute_vocab.py
 │   ├── extract_gallery_attributes.py
 │   ├── preflight_aptm.py
+│   ├── run_subset_topk.py
 │   ├── smoke_test_aptm_gpu.py
 │   └── score_query_attributes.py
 ├── src/attributes/
@@ -233,6 +234,16 @@ python scripts/extract_gallery_attributes.py --config configs/attributes.yaml
 
 结果写入 `cache/gallery_attributes.json`。该文件和 prompt embedding cache 都不提交 GitHub。
 
+`extract_gallery_attributes.py` 也支持小批量提取。指定 `--limit` 且未指定
+`--output` 时，会自动写入 `gallery_attributes_subset.json`，不会覆盖正式 cache：
+
+```bash
+python scripts/extract_gallery_attributes.py \
+  --config configs/attributes.yaml \
+  --limit 20 \
+  --output outputs/subset/gallery_attributes_subset.json
+```
+
 APTM adapter 复用官方 `APTM_Retrieval`、vision encoder、text encoder 和投影层；image/prompt feature 使用 L2 normalization，并计算：
 
 ```text
@@ -241,7 +252,83 @@ Z = normalized_image_feature @ normalized_prompt_feature.T / model.temp
 
 每个属性只在其官方 `(2i, 2i+1)` prompt pair 内比较。
 
-## 3. Query 评分与 Dynamic Top-K
+## 3. 少量真实 CUHK-PEDES Pipeline Sanity Check
+
+`run_subset_topk.py` 用少量真实 gallery 和 text query 顺序运行 APTM 属性提取、独立
+gallery cache、`C(A)`、`S(a_i)` 和 Dynamic Top-K：
+
+```bash
+python scripts/run_subset_topk.py \
+  --config configs/attributes.yaml \
+  --num-gallery 20 \
+  --num-queries 10 \
+  --output-dir outputs/subset
+```
+
+输入路径由 `configs/attributes.yaml` 管理：
+
+```yaml
+dataset:
+  root: ./datasets/CUHK-PEDES
+  gallery_manifest: ./datasets/CUHK-PEDES/gallery.json
+  gallery_split: test
+
+subset:
+  query_annotations: ./datasets/CUHK-PEDES/cuhk_test.json
+  query_split: test
+  output_dir: ./outputs/subset
+```
+
+gallery manifest 是对象列表，每项使用 `path`、`image` 或 `file_path`，路径相对
+`dataset.root`。若记录包含 `split`，只读取配置的 `gallery_split`；重复图片会按
+`image_id`/路径去重：
+
+```json
+[
+  {"image_id": "g1", "path": "imgs/cam_a/001.jpg"},
+  {"image_id": "g2", "image": "imgs/cam_b/002.jpg"}
+]
+```
+
+query annotations 支持两类常见格式：
+
+```json
+[
+  {"query_id": "q1", "caption": "A man in a red shirt."},
+  {"image_id": "p2", "caption": "A woman carrying a backpack."}
+]
+```
+
+或 CUHK-PEDES 原始 caption 列表格式：
+
+```json
+[
+  {
+    "id": 10,
+    "split": "test",
+    "captions": ["First description.", "Second description."]
+  }
+]
+```
+
+也支持顶层 `{"test": [...]}` 或 `{"queries": [...]}`。脚本按文件顺序取前 N 个有效
+gallery/query，不进行随机抽样，便于复现。
+
+输出目录固定使用独立文件，不覆盖 `cache/gallery_attributes.json`：
+
+- `gallery_attributes_subset.json`：少量图片的 27 维 APTM 预测；
+- `query_topk.json`：每条 query 的原文、Raw ↔ Canonical span、各属性 `S(a_i)`、
+  `candidate_count`、dynamic k 和 selected attributes；
+- `summary.json`：query 总数、有属性/零属性/低覆盖数量、平均属性数、平均 k、k 分布、
+  canonical 属性频率，以及零属性和低覆盖 query 明细。
+
+`coverage_status=none` 表示未提取到 canonical 属性；默认一个属性记为 `low`。这些统计用于
+暴露真实语料下 `alias_map` 覆盖不足，脚本不会自动修改或扩展 alias。
+
+重要：subset 结果只用于 pipeline sanity check。基于少量 gallery 计算的 `C(A)`、
+`S(a_i)` 和 Top-K 不具备正式统计意义；正式结果必须使用完整 gallery attribute cache。
+
+## 4. Query 评分与 Dynamic Top-K
 
 gallery cache 生成后可在 CPU 上运行评分：
 
@@ -313,6 +400,7 @@ Linux 4090 Server
   → 通过 XFTP 准备 dataset/checkpoint/BERT/可选 Swin
   → python scripts/preflight_aptm.py
   → python scripts/smoke_test_aptm_gpu.py --image ...
+  → python scripts/run_subset_topk.py --num-gallery ... --num-queries ...
   → python scripts/extract_gallery_attributes.py
   → 后续只读取 gallery cache 计算 C(A)、S(a_i) 和 Dynamic Top-K
 ```
