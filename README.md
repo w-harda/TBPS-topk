@@ -45,6 +45,8 @@ idea-TBPS/
 ├── scripts/
 │   ├── build_raw_attribute_vocab.py
 │   ├── extract_gallery_attributes.py
+│   ├── preflight_aptm.py
+│   ├── smoke_test_aptm_gpu.py
 │   └── score_query_attributes.py
 ├── src/attributes/
 │   ├── aptm_extractor.py
@@ -65,7 +67,7 @@ idea-TBPS/
 
 运行后才出现、且默认不进 Git 的目录为 `datasets/`、`checkpoints/`、`cache/` 和 `outputs/`。
 
-## Windows：本地开发与 CPU 测试
+## Windows：本地开发与 CPU/GPU 验证
 
 建议 Python 3.9：
 
@@ -88,6 +90,20 @@ python -m nltk.downloader averaged_perceptron_tagger_eng
 
 CPU 测试不需要 CUHK-PEDES、APTM、checkpoint、BERT 或 GPU。
 
+如果 Windows 有可用 NVIDIA GPU，应在与服务器兼容的 Python 3.9 环境中继续执行
+APTM preflight 和少量图片 smoke test，而不是把 import、路径或 adapter 错误留到服务器
+调试。GPU smoke test 不属于普通 pytest，不会在缺少 checkpoint 的机器上自动运行：
+
+```powershell
+python scripts/preflight_aptm.py --config configs/attributes.yaml
+python scripts/smoke_test_aptm_gpu.py `
+  --config configs/attributes.yaml `
+  --image C:\path\to\person.jpg
+```
+
+没有 CUDA 时，smoke script 会明确输出 `SKIP` 并正常退出；缺少 PyTorch、源码、BERT
+或 checkpoint 属于环境未准备完成，会给出 `FAIL` 和具体路径。
+
 ## 配置路径
 
 所有项目路径都在 `configs/attributes.yaml` 中配置，并相对于项目根目录解析；业务代码没有 Windows 或 Linux 绝对路径。更换机器时只改配置，不改源码。
@@ -102,8 +118,10 @@ dataset:
 
 aptm:
   root: ./third_party/APTM
+  source_manifest: ./metadata/aptm_source.json
   checkpoint: ./checkpoints/aptm.pth
   bert_path: ./checkpoints/bert-base-uncased
+  load_swin_pretrained: false
   swin_path: ./checkpoints/swin_base_patch4_window7_224_22k.pth
 
 cache:
@@ -137,7 +155,7 @@ python scripts/build_raw_attribute_vocab.py --config configs/attributes.yaml
 
 审核候选后，人工更新并冻结 `ontology/alias_map.json`。当前版本不调用外部 LLM API。
 
-## 2. Linux 4090：一次性提取 Gallery Attributes
+## 2. 准备与验证真实 APTM
 
 建议创建独立环境。PyTorch 按服务器 CUDA 环境单独安装，示例：
 
@@ -150,19 +168,64 @@ pip install -r requirements-aptm.txt
 pip install -e .
 ```
 
-然后准备外部文件并核对配置：
+当前服务器兼容组合为 Python 3.9、PyTorch 2.1.2+cu121、torchvision
+0.16.2+cu121、NumPy 1.26.4 和 opencv-python 4.11.0.86。NumPy 与 OpenCV
+版本被显式固定，是为了避免新版 opencv-python 5.x 强制要求 NumPy 2.x，
+从而影响 PyTorch 2.1.2 / APTM 旧代码兼容性。
+
+APTM 官方源码不能直接 clone 到 `third_party/APTM`，因为该目录已经包含本项目管理的
+说明文件。请按 [third_party/APTM/README.md](third_party/APTM/README.md) 使用临时目录
+clone 固定 commit 后复制，或在 Windows 准备后通过 XFTP 上传。
+
+### 外部资源的准确结论
+
+当前 adapter 的完整 checkpoint inference 调用链决定了：
 
 ```text
-third_party/APTM/                         APTM 官方源码
-checkpoints/aptm.pth                      APTM 完整 checkpoint
-checkpoints/bert-base-uncased/            BERT 本地目录
-checkpoints/swin_base_patch4_window7_224_22k.pth  Swin 初始权重（可选；兼容/从基础模型重建时使用）
-datasets/CUHK-PEDES/                      CUHK-PEDES 数据
-datasets/CUHK-PEDES/cuhk_train.json       train captions
-datasets/CUHK-PEDES/gallery.json          gallery manifest
+构建模型必须：
+  third_party/APTM/                       固定 commit 的官方源码和 config
+  checkpoints/bert-base-uncased/          config.json、vocab.txt、pytorch_model.bin
+
+加载完整 inference 权重必须：
+  checkpoints/aptm.pth                    完整 APTM checkpoint
+
+完整 checkpoint inference 不需要：
+  checkpoints/swin_base_patch4_window7_224_22k.pth
+
+仅当 load_swin_pretrained: true 时必须：
+  checkpoints/swin_base_patch4_window7_224_22k.pth
+
+全量 gallery 才需要：
+  datasets/CUHK-PEDES/                    图片与 gallery.json
 ```
 
-执行：
+原因是官方 `APTM_Retrieval` 构造期间始终通过
+`BertForMaskedLM.from_pretrained(config['text_encoder'])` 构建文本编码器，所以即使稍后
+加载完整 APTM checkpoint，BERT 本地目录仍是构建模型的必要输入。视觉侧在完整 checkpoint
+模式中明确设置 `load_params=false`，先构造 Swin 结构、再用完整 APTM checkpoint 覆盖
+vision encoder 和 projection 参数，因此不读取 Swin 初始化权重。adapter 会检查完整
+checkpoint 是否缺少 vision/text encoder、projection 或 temperature 的关键参数。
+
+只有需要按官方初始化流程先载入 Swin pretrained 权重时才把
+`load_swin_pretrained` 改为 `true`；此时 adapter 会生成临时 vision config，将官方 JSON
+中的 `ckpt` 明确重写为配置的 `swin_path`，再构建模型，之后仍加载配置的完整 APTM
+checkpoint。此兼容/诊断模式不是当前 inference 默认路径，也不是新增训练入口。
+
+### Preflight、GPU smoke 与全量提取
+
+先运行 preflight，再使用一到两张普通行人图片执行真实 GPU smoke test：
+
+```bash
+python scripts/preflight_aptm.py --config configs/attributes.yaml
+python scripts/smoke_test_aptm_gpu.py \
+  --config configs/attributes.yaml \
+  --image /path/to/person.jpg
+```
+
+smoke test 会加载真实 APTM/BERT/checkpoint、编码 54 prompts、输出每张图的 27 个属性，
+并验证 model、prompt features 和 image tensor 都实际位于 CUDA device。
+
+smoke test 通过后再执行全量 gallery preprocessing：
 
 ```bash
 python scripts/extract_gallery_attributes.py --config configs/attributes.yaml
@@ -228,7 +291,31 @@ XFTP/本地存储负责大文件：原始数据集、图片、APTM/BERT/Swin 权
 
 当前没有修改 APTM 官方源码。所有项目逻辑都在 adapter 中：延迟导入官方代码、覆盖本地路径、加载 checkpoint、确定性预处理、缓存 prompt features 和输出统一 JSON。
 
-APTM 官方环境是旧版 PyTorch/CUDA；目标服务器首先尝试 Python 3.9 + PyTorch 2.1.2 + CUDA 12.1 runtime。如果正式推理出现兼容错误，应记录原始报错并只做最小兼容修改，同时在本节记录改动。由于本地没有 checkpoint/GPU，目前尚未完成 4090 实机兼容验证。
+APTM 官方环境是旧版 PyTorch/CUDA；当前服务器已验证 Python 3.9.25、PyTorch
+2.1.2+cu121、torchvision 0.16.2+cu121、NumPy 1.26.4、CUDA 可用和依赖无破损。
+正式 APTM checkpoint inference 仍需通过新增的 GPU smoke test 验证。本地机器检测到 NVIDIA
+GPU，但当前默认 Python 环境尚未安装 PyTorch，也没有项目外部权重，因此本次不能伪称已经
+完成真实模型 smoke test。
+
+## 推荐工作流
+
+```text
+Windows 本地开发
+  → CPU pytest
+  → 有 CUDA 时执行 APTM preflight + GPU smoke test
+  → git commit / git push
+
+GitHub
+  → 同步源码、配置、ontology 和 metadata
+
+Linux 4090 Server
+  → git pull
+  → 通过 XFTP 准备 dataset/checkpoint/BERT/可选 Swin
+  → python scripts/preflight_aptm.py
+  → python scripts/smoke_test_aptm_gpu.py --image ...
+  → python scripts/extract_gallery_attributes.py
+  → 后续只读取 gallery cache 计算 C(A)、S(a_i) 和 Dynamic Top-K
+```
 
 ## 版本控制状态
 

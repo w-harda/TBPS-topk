@@ -1,9 +1,10 @@
 # 先按 README 安装与机器 CUDA 匹配的 torch / torchvision，再安装本文件。
 # APTM 官方代码来自旧环境；这里保持其主要依赖范围，不自动下载任何权重。
+numpy==1.26.4
 timm==0.4.9
 transformers==4.12.5
 ruamel_yaml
-opencv-python
+opencv-python==4.11.0.86
 scikit-image
 matplotlib
 audtorch
@@ -12,4 +13,3 @@ easydict
 nltk>=3.8,<4
 PyYAML>=6,<7
 Pillow
-

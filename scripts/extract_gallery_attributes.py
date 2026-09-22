@@ -40,24 +40,7 @@ def main() -> None:
     config, project_root = load_project_config(args.config)
     set_random_seed(int(config.get("seed", 42)))
     ontology = AttributeOntology.load(project_path(project_root, config["ontology"]["path"]))
-    aptm = config["aptm"]
-    normalization = aptm["normalization"]
-    backend = OfficialAPTMBackend(
-        aptm_root=project_path(project_root, aptm["root"]),
-        official_config=project_path(project_root, aptm["official_config"]),
-        checkpoint=project_path(project_root, aptm["checkpoint"]),
-        bert_path=project_path(project_root, aptm["bert_path"]),
-        vision_config=project_path(project_root, aptm["vision_config"]),
-        swin_path=project_path(project_root, aptm["swin_path"]),
-        device=aptm.get("device", "cuda"),
-        batch_size=int(aptm.get("batch_size", 64)),
-        image_height=int(aptm.get("image_height", 384)),
-        image_width=int(aptm.get("image_width", 128)),
-        normalization_mean=normalization["mean"],
-        normalization_std=normalization["std"],
-        prompt_feature_cache=project_path(project_root, aptm["prompt_feature_cache"]),
-        ontology_digest=ontology.digest,
-    )
+    backend = OfficialAPTMBackend.from_config(config["aptm"], project_root, ontology)
     dataset = config["dataset"]
     images = load_manifest(
         project_path(project_root, dataset["gallery_manifest"]),
@@ -71,4 +54,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

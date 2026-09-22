@@ -22,11 +22,15 @@ ontology:
 
 aptm:
   root: ./third_party/APTM
+  source_manifest: ./metadata/aptm_source.json
   official_config: ./third_party/APTM/configs/Retrieval_gene.yaml
   checkpoint: ./checkpoints/aptm.pth
   bert_path: ./checkpoints/bert-base-uncased
   vision_config: ./third_party/APTM/configs/config_swinB_384.json
+  # 完整 APTM checkpoint 推理时设为 false；仅需按官方流程先加载 Swin 初始化权重时设为 true。
+  load_swin_pretrained: false
   swin_path: ./checkpoints/swin_base_patch4_window7_224_22k.pth
+  offline: true
   device: cuda
   batch_size: 64
   prompt_feature_cache: ./cache/aptm_prompt_features.pt
@@ -52,3 +56,7 @@ output:
   root: ./outputs
   query_scores: ./outputs/query_attribute_scores.json
 
+smoke_test:
+  # 可填相对项目根目录或绝对路径；也可由脚本的 --image 参数提供。
+  images: []
+  max_images: 2

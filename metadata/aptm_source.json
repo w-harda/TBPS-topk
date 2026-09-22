@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/Shuyu-XJTU/APTM",
+  "commit": "b20025445471eb4b743164a6faec29a9eccfb293",
+  "hash_algorithm": "sha256-lf-normalized",
+  "files": {
+    "models/aptm.py": "d94957a9f9d941dbd127c35028bac4c8f0d1d927b7038170c3485c9c3afdae7d",
+    "models/model_retrieval.py": "ffcef73c772a111aeb0b4fe85073e8d6cbbe454fb62ed8c18a3ba51179c8e230",
+    "models/tokenization_bert.py": "7723a9acc1a44bfe0eb435cb9d49a36677700e87cf572e7347329763c41cdfbf",
+    "models/bert.py": "8859c2c287ab58d11a4b34f97e4b7fdb708c1bb5dbe0daff5353e0a6b3894515",
+    "models/swin_transformer.py": "2e9cdacd2e8c6689b32c5210f25a36d5dbc56b46f9a11b8c6a861da367917a08",
+    "configs/Retrieval_gene.yaml": "50ae4144b1a4bb26be961648c542eb6b053430fd569d84ac26803b666d87ff51",
+    "configs/config_swinB_384.json": "d0665d33e20792bad6ca6251a68f559317967f55a65792a1d8523242972aeda1",
+    "configs/config_bert.json": "86577b4b8c7948b8c9da4ef5a02a8db63575f536de40fae64ad949bb15c4fb7c",
+    "utils/__init__.py": "612ec648973bb89f752895bebc2a7413a65acb01af1c9447336f7ad48cdf254f",
+    "trains.py": "7ca8fbf88d151c032d3520445b2db10f523d5fe4ce06c4d0c313645c07daca0e"
+  }
+}
