@@ -1,0 +1,149 @@
+schema_version: 1
+name: MALS_APTM_27
+attribute_count: 27
+prompt_count: 54
+source:
+  repository: https://github.com/Shuyu-XJTU/APTM
+  commit: b20025445471eb4b743164a6faec29a9eccfb293
+  file: trains.py
+  note: prompt 文本与顺序逐字取自官方 train_attr 中的 attr 列表
+
+# prompts[0] 对应官方 label_value=0，prompts[1] 对应 label_value=1。
+# canonical 由 prompt 明文语义确定；不能用 prompt 在 pair 中的位置推断正负。
+attributes:
+  - index: 0
+    id: gender
+    prompts:
+      - {label_value: 0, canonical: "gender:female", semantic: female, text: "the person is a woman"}
+      - {label_value: 1, canonical: "gender:male", semantic: male, text: "the person is a man"}
+  - index: 1
+    id: age
+    prompts:
+      - {label_value: 0, canonical: "age:minor", semantic: minor, text: "the person is younger than 18 years old"}
+      - {label_value: 1, canonical: "age:adult", semantic: adult, text: "the person is older than 18 years old"}
+  - index: 2
+    id: hair_length
+    prompts:
+      - {label_value: 0, canonical: "hair_length:short", semantic: short, text: "the person with short hair"}
+      - {label_value: 1, canonical: "hair_length:long", semantic: long, text: "the person with long hair"}
+  - index: 3
+    id: hat
+    prompts:
+      - {label_value: 0, canonical: "hat:positive", semantic: present, text: "the person with a hat"}
+      - {label_value: 1, canonical: "hat:negative", semantic: absent, text: "the person without a hat"}
+  - index: 4
+    id: backpack
+    prompts:
+      - {label_value: 0, canonical: "backpack:positive", semantic: present, text: "the person with a backpack"}
+      - {label_value: 1, canonical: "backpack:negative", semantic: absent, text: "the person without a backpack"}
+  - index: 5
+    id: handbag
+    prompts:
+      - {label_value: 0, canonical: "handbag:positive", semantic: present, text: "the person with a handbag"}
+      - {label_value: 1, canonical: "handbag:negative", semantic: absent, text: "the person without a handbag"}
+  - index: 6
+    id: bag
+    prompts:
+      - {label_value: 0, canonical: "bag:positive", semantic: present, text: "the person with a bag"}
+      - {label_value: 1, canonical: "bag:negative", semantic: absent, text: "the person without a bag"}
+  - index: 7
+    id: sleeve_length
+    prompts:
+      - {label_value: 0, canonical: "sleeve_length:long", semantic: long, text: "the person wears long sleeved upper clothes"}
+      - {label_value: 1, canonical: "sleeve_length:short", semantic: short, text: "the person wears short sleeved upper clothes"}
+  - index: 8
+    id: lower_length
+    prompts:
+      - {label_value: 0, canonical: "lower_length:long", semantic: long, text: "the person wears long dress or long pants"}
+      - {label_value: 1, canonical: "lower_length:short", semantic: short, text: "the person wears short dress or short pants"}
+  - index: 9
+    id: lower_type
+    prompts:
+      - {label_value: 0, canonical: "lower_type:skirt_or_dress", semantic: skirt_or_dress, text: "the person wears dress or skirt"}
+      - {label_value: 1, canonical: "lower_type:pants_or_shorts", semantic: pants_or_shorts, text: "the person wears pants or shorts"}
+  - index: 10
+    id: upper_black
+    prompts:
+      - {label_value: 0, canonical: "upper_black:positive", semantic: present, text: "the person wears black upper clothes"}
+      - {label_value: 1, canonical: "upper_black:negative", semantic: absent, text: "the person does not wear black upper clothes"}
+  - index: 11
+    id: upper_white
+    prompts:
+      - {label_value: 0, canonical: "upper_white:positive", semantic: present, text: "the person wears white upper clothes"}
+      - {label_value: 1, canonical: "upper_white:negative", semantic: absent, text: "the person does not wear white upper clothes"}
+  - index: 12
+    id: upper_red
+    prompts:
+      - {label_value: 0, canonical: "upper_red:positive", semantic: present, text: "the person wears red upper clothes"}
+      - {label_value: 1, canonical: "upper_red:negative", semantic: absent, text: "the person does not wear red upper clothes"}
+  - index: 13
+    id: upper_purple
+    prompts:
+      - {label_value: 0, canonical: "upper_purple:positive", semantic: present, text: "the person wears purple upper clothes"}
+      - {label_value: 1, canonical: "upper_purple:negative", semantic: absent, text: "the person does not wear purple upper clothes"}
+  - index: 14
+    id: upper_yellow
+    prompts:
+      - {label_value: 0, canonical: "upper_yellow:positive", semantic: present, text: "the person wears yellow upper clothes"}
+      - {label_value: 1, canonical: "upper_yellow:negative", semantic: absent, text: "the person does not wear yellow upper clothes"}
+  - index: 15
+    id: upper_blue
+    prompts:
+      - {label_value: 0, canonical: "upper_blue:positive", semantic: present, text: "the person wears blue upper clothes"}
+      - {label_value: 1, canonical: "upper_blue:negative", semantic: absent, text: "the person does not wear blue upper clothes"}
+  - index: 16
+    id: upper_green
+    prompts:
+      - {label_value: 0, canonical: "upper_green:positive", semantic: present, text: "the person wears green upper clothes"}
+      - {label_value: 1, canonical: "upper_green:negative", semantic: absent, text: "the person does not wear green upper clothes"}
+  - index: 17
+    id: upper_gray
+    prompts:
+      - {label_value: 0, canonical: "upper_gray:positive", semantic: present, text: "the person wears gray upper clothes"}
+      - {label_value: 1, canonical: "upper_gray:negative", semantic: absent, text: "the person does not wear gray upper clothes"}
+  - index: 18
+    id: lower_black
+    prompts:
+      - {label_value: 0, canonical: "lower_black:positive", semantic: present, text: "the person wears black lower clothes"}
+      - {label_value: 1, canonical: "lower_black:negative", semantic: absent, text: "the person does not wear black lower clothes"}
+  - index: 19
+    id: lower_white
+    prompts:
+      - {label_value: 0, canonical: "lower_white:positive", semantic: present, text: "the person wears white lower clothes"}
+      - {label_value: 1, canonical: "lower_white:negative", semantic: absent, text: "the person does not wear white lower clothes"}
+  - index: 20
+    id: lower_purple
+    prompts:
+      - {label_value: 0, canonical: "lower_purple:positive", semantic: present, text: "the person wears purple lower clothes"}
+      - {label_value: 1, canonical: "lower_purple:negative", semantic: absent, text: "the person does not wear purple lower clothes"}
+  - index: 21
+    id: lower_yellow
+    prompts:
+      - {label_value: 0, canonical: "lower_yellow:positive", semantic: present, text: "the person wears yellow lower clothes"}
+      - {label_value: 1, canonical: "lower_yellow:negative", semantic: absent, text: "the person does not wear yellow lower clothes"}
+  - index: 22
+    id: lower_blue
+    prompts:
+      - {label_value: 0, canonical: "lower_blue:positive", semantic: present, text: "the person wears blue lower clothes"}
+      - {label_value: 1, canonical: "lower_blue:negative", semantic: absent, text: "the person does not wear blue lower clothes"}
+  - index: 23
+    id: lower_green
+    prompts:
+      - {label_value: 0, canonical: "lower_green:positive", semantic: present, text: "the person wears green lower clothes"}
+      - {label_value: 1, canonical: "lower_green:negative", semantic: absent, text: "the person does not wear green lower clothes"}
+  - index: 24
+    id: lower_pink
+    prompts:
+      - {label_value: 0, canonical: "lower_pink:positive", semantic: present, text: "the person wears pink lower clothes"}
+      - {label_value: 1, canonical: "lower_pink:negative", semantic: absent, text: "the person does not wear pink lower clothes"}
+  - index: 25
+    id: lower_gray
+    prompts:
+      - {label_value: 0, canonical: "lower_gray:positive", semantic: present, text: "the person wears gray lower clothes"}
+      - {label_value: 1, canonical: "lower_gray:negative", semantic: absent, text: "the person does not wear gray lower clothes"}
+  - index: 26
+    id: lower_brown
+    prompts:
+      - {label_value: 0, canonical: "lower_brown:positive", semantic: present, text: "the person wears brown lower clothes"}
+      - {label_value: 1, canonical: "lower_brown:negative", semantic: absent, text: "the person does not wear brown lower clothes"}
+

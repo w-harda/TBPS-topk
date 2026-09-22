@@ -1,0 +1,33 @@
+# 大型数据与模型文件（通过 XFTP 或其他离线方式传输）
+datasets/
+checkpoints/
+weights/
+cache/
+outputs/
+
+*.pth
+*.pt
+*.ckpt
+*.bin
+*.safetensors
+
+# 第三方 APTM 源码在目标机器单独准备；保留版本说明
+third_party/APTM/*
+!third_party/APTM/README.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+

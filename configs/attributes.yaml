@@ -1,0 +1,54 @@
+seed: 42
+
+dataset:
+  root: ./datasets/CUHK-PEDES
+  train_annotations: ./datasets/CUHK-PEDES/cuhk_train.json
+  gallery_manifest: ./datasets/CUHK-PEDES/gallery.json
+  train_split_name: train
+  # 独立的 cuhk_train.json 通常不含 split 字段；若使用总标注文件请改为 true。
+  require_split_field: false
+
+text_mining:
+  max_phrase_length: 3
+  min_freq: 40
+  nltk_data_dir: null
+  raw_vocab_output: ./outputs/raw_attribute_vocab.json
+  mapping_candidates_output: ./outputs/mapping_candidates.json
+  unmapped_output: ./outputs/unmapped_high_frequency_phrases.json
+
+ontology:
+  path: ./ontology/aptm_attributes.yaml
+  alias_map: ./ontology/alias_map.json
+
+aptm:
+  root: ./third_party/APTM
+  official_config: ./third_party/APTM/configs/Retrieval_gene.yaml
+  checkpoint: ./checkpoints/aptm.pth
+  bert_path: ./checkpoints/bert-base-uncased
+  vision_config: ./third_party/APTM/configs/config_swinB_384.json
+  swin_path: ./checkpoints/swin_base_patch4_window7_224_22k.pth
+  device: cuda
+  batch_size: 64
+  prompt_feature_cache: ./cache/aptm_prompt_features.pt
+  image_height: 384
+  image_width: 128
+  normalization:
+    mean: [0.38901278, 0.3651612, 0.34836376]
+    std: [0.24344306, 0.23738699, 0.23368555]
+
+cache:
+  gallery_attributes: ./cache/gallery_attributes.json
+
+scoring:
+  alpha: 1.0
+
+topk:
+  # 研究超参数；0.6 是首版可复现实验默认值。
+  beta: 0.6
+  k_min: 1
+  k_max: 5
+
+output:
+  root: ./outputs
+  query_scores: ./outputs/query_attribute_scores.json
+
